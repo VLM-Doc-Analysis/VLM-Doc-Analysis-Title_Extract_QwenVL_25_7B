@@ -66,7 +66,7 @@ donut_data/                   # Donut training-data labeling pipeline (see donut
 input_doc/                    # Test drawing images
 output/                       # JSON results (*_title_block.json / *_baseline.json)
 datasets/drawing_obb/         # YOLO-OBB images/ + labels/ (train|val)
-resource/                     # Design guide, method comparison (도면요소추출_방법비교.md/.txt), samples
+resource/                     # Design guide, method comparison (도면요소추출_방법비교.md), samples
 ```
 
 ## Setup
