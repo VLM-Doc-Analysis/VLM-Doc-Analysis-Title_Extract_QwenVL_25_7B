@@ -9,6 +9,9 @@
 
 좌표는 모두 **이미지 크기로 0~1 정규화**. `images/<split>/X.png` ↔ `labels/<split>/X.txt` **파일명 stem 일치**.
 
+> 📎 **복사용 .txt 예시**: [`label_samples/`](label_samples/) — `layout_example.txt`(det),
+> `obb_example.txt`(OBB), 각 줄 설명은 `label_samples/README.md`.
+
 ---
 
 ## 0. 도구
