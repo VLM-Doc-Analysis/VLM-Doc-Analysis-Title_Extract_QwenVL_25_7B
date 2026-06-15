@@ -26,6 +26,7 @@ __pycache__/
 yolo_obb_drawing/
 yolo_layout_drawing/
 *.pt
+*.cache                 # ultralytics label caches (datasets/**/labels/*.cache)
 
 # Dataset binaries (keep folder structure via .gitkeep, not the images/labels)
 datasets/drawing_obb/images/train/*
