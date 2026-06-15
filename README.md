@@ -22,6 +22,26 @@ Based on a method comparison against two on-topic papers (Khan et al.) — see
   **auto-label crops**, accumulate Donut training data, then fine-tune. This repo's
   [`donut_data/`](donut_data/) pipeline does exactly that.
 
+### Method comparison — key conclusions
+
+Three approaches were weighed (Donut / PaddleOCR-VL / Qwen-VL); full analysis, per-element
+matrix, and appendices are in [`resource/도면요소추출_방법비교.md`](resource/도면요소추출_방법비교.md).
+
+| Element | Best choice | Why |
+|---|---|---|
+| Title-block (5 fields) | **Qwen zero-shot + ROI** | fixed schema; already works, no training |
+| measure / radii / GD&T | **fine-tuned Donut** | papers: GD&T F1 ≈ 0.965, ~143M, low hallucination |
+| Notes (free text) | Qwen / PaddleOCR | handwriting + open vocabulary |
+
+- **Fine-tuned lightweight Donut beats large zero-shot VLMs** (GPT-4o/Claude/Qwen) for this
+  domain and hallucinates less → it is the *production target*; large VLMs serve cold-start
+  auto-labeling / fallback.
+- **GD&T is a strength, not a weakness, for fine-tuned Donut**: the symbol set is finite
+  (14, ASME Y14.5) and schema-constrained, so the "vocab" concern is a *zero-shot-only* issue
+  that fine-tuning dissolves.
+- **Fine-tuning reduces but does not eliminate hallucination**; the first line of defense is
+  preprocessing (ROI crop) + strict-JSON/`null` discipline, not the model itself.
+
 ## Core idea: *detect (where) → crop → VLM (what does it say)*
 
 Both pipelines split responsibility to reduce hallucination:
