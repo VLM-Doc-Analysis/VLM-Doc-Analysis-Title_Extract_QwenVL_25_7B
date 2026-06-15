@@ -11,6 +11,12 @@ LICENSE
 *.pdf
 input_doc/*.pdf
 
+# Generated Donut training data / crops (derived from confidential drawings)
+datasets/donut_anno/
+patches/
+**/_crops/
+**/_pages/
+
 # Python
 __pycache__/
 *.py[cod]
