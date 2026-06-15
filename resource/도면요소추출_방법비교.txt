@@ -123,6 +123,43 @@ GD&T/데이텀(의미)         ✕       ✕(후처리)       ◎
 
 범례: ◎ 매우 적합 / ○ 적합 / △ 제한적 / ✕ 부적합
 
+[!] 위 Donut 열의 전제:
+    공차/치수/GD&T에 대해 "충분히 파인튜닝되지 않은(또는 데이터가 적은)"
+    상태를 가정한 평가 = 지금 당장(실데이터 2장)의 Donut.
+    Donut을 제대로 파인튜닝하면 평가가 크게 달라진다 -> 아래 4-2.
+
+
+--------------------------------------------------------------------
+4-2. 만약 Donut을 충분히 파인튜닝한다면 (YOLO -> fine-tuned Donut)
+--------------------------------------------------------------------
+전제: 요소별 라벨 크롭을 충분히 확보(실데이터+합성 수백~수천 장),
+      Ø/±/⊕ 등 필요한 토큰을 vocab에 추가 후 대량 학습,
+      스캔 노이즈 augmentation 적용.
+
+요소                   미파인튜닝   충분히 파인튜닝 시   비고
+---------------------  ----------  ------------------  ----------------------------
+치수/Ø/각도            ✕           ◎                  패턴 단순 -> 학습 쉽고 싸고 빠름
+Radii / 모따기         ✕           ◎                  동일
+표제란(한영 표)        △           ◎                  Donut 본령(CORD형), 한글토큰 학습 시
+노트(영문+손글씨)      ✕           △~○                자유문 덜 친화, 손글씨 한글 여전히 약함
+GD&T/데이텀(의미)      ✕           ○                  학습한 조합 재현. 미학습 조합 일반화는 Qwen<
+워터마크/노이즈        ✕           ○                  학습한 노이즈엔 강함, 새 노이즈엔 약함
+소데이터(2장 출발)     ✕           ✕ (그대로)         ★ 본질적 한계 - 파인튜닝은 데이터가 전제
+비용/속도              ◎           ◎                  최대 강점 유지(~200M, 7B 대비 수십배 저렴)
+
+핵심 정리 (파인튜닝하면 무엇이 바뀌나)
+  - 대부분의 ✕는 데이터/vocab 문제 -> 충분한 학습으로 ◎/○ 로 전환.
+    특히 치수/표제란은 ◎ (Donut 홈그라운드, 게다가 가장 싸고 빠름).
+  - 그러나 두 가지는 파인튜닝해도 Qwen보다 약함:
+      (1) GD&T 미학습 조합의 일반화 (추론 없어 본 패턴만 재현)
+      (2) 자유문 노트 / 손글씨 한글 (가변/비정형)
+  - 변하지 않는 한 가지: '소데이터(2장 출발)'의 ✕.
+    파인튜닝은 데이터가 전제 -> 지금 당장 적은 데이터로는 여전히 부적합
+    -> 이때는 Qwen(LoRA)/PaddleOCR가 유리.
+
+  한 줄: 데이터(특히 합성)를 갖추면 Donut은 치수/표제란에서 최강 가성비가 되고,
+         GD&T/노트만 Qwen 보강이 필요. 결국 "데이터 확보 여부"가 갈림길.
+
 
 --------------------------------------------------------------------
 5. Donut 파인튜닝 심화 - "괜찮지 않나?"에 대한 답
@@ -184,6 +221,89 @@ GD&T까지 Donut + 합성 파이프라인 투자   YOLO + Donut(합성 대량)
   3) 표제란=PaddleOCR-VL 표 출력 품질, GD&T=Qwen 의미 JSON 정확도를
      leaf-match로 측정
   4) 결과에 따라 "PaddleOCR 단독 / 하이브리드 분기점" 확정
+
+
+--------------------------------------------------------------------
+9. (부록) GD&T 크롭용 few-shot 프롬프트 초안
+--------------------------------------------------------------------
+하이브리드에서 GD&T 크롭을 Qwen-VL로 읽을 때 쓰는 프롬프트.
+파인튜닝 없이 zero/few-shot으로 시작하고, 부족할 때만 LoRA로 넘어감.
+구성: (1) 텍스트 지시 (2) few-shot 예시(이미지+JSON) (3) Qwen 메시지 조립 코드.
+
+[1] 텍스트 프롬프트 (instruction)
+....................................................................
+You are reading a single CROPPED region from a mechanical engineering
+drawing. The crop contains ONE GD&T feature control frame, possibly with
+leading datum target text. Transcribe it and return STRICT JSON.
+
+## GD&T symbol -> characteristic (use English name in "characteristic")
+  straightness(⏤)  perpendicularity(⊥)  flatness(⏥/▱)  angularity(∠)
+  circularity(○)   parallelism(∥)        cylindricity(⌭) position(⌖/⊕)
+  profile-line(⌒)  profile-surface(⌓)    concentricity(◎) symmetry(⌯)
+  circular-runout(↗)                      total-runout(⌰)
+
+## Modifiers (circled letter)
+  Ⓜ="M"(MMC)  Ⓛ="L"(LMC)  Ⓢ="S"(RFS)  Ⓟ="P"(projected zone)
+
+## Output JSON schema (these keys exactly)
+{
+  "characteristic": <english name, or null>,
+  "symbol":         <glyph as printed, e.g. "⌖","⊥","▱">,
+  "tolerance":      <zone value as printed, e.g. "Ø0.4","0.08">,
+  "modifier":       <"M"|"L"|"S"|"P"|null  -- modifier on tolerance value>,
+  "datums":         <ordered refs WITH modifiers, e.g. ["A","B(M)","C"]; [] if none>,
+  "raw":            <verbatim transcription, left to right>
+}
+
+## Rules
+- Copy VERBATIM. Preserve European commas ("0,1" stays "0,1", never "0.1").
+- "Ø" = diameter zone -> keep in "tolerance".
+- circled letter AFTER tolerance -> "modifier";
+  circled letter ON a datum -> inside that entry, e.g. B+Ⓜ = "B(M)".
+- datums keep left-to-right order; missing field -> null (or [] for datums).
+- Output ONLY the JSON object. No fences, no explanation.
+....................................................................
+
+[2] Few-shot 예시 (이미지 <-> 정답 JSON)
+    * 예시는 텍스트만이 아니라 "이미지 크롭 자체"를 함께 넣어야 효과.
+    * 아래는 doc_sample_paper_01.jpg 실제 패치 3개.
+
+  크롭 "⊕ Ø0.4Ⓜ A BⓂ C" ->
+    {"characteristic":"position","symbol":"⌖","tolerance":"Ø0.4",
+     "modifier":"M","datums":["A","B(M)","C"],"raw":"⊕ Ø0.4Ⓜ A BⓂ C"}
+
+  크롭 "⊥ 0.1Ⓜ A" ->
+    {"characteristic":"perpendicularity","symbol":"⊥","tolerance":"0.1",
+     "modifier":"M","datums":["A"],"raw":"⊥ 0.1Ⓜ A"}
+
+  크롭 "▱ 0.08" ->
+    {"characteristic":"flatness","symbol":"▱","tolerance":"0.08",
+     "modifier":null,"datums":[],"raw":"▱ 0.08"}
+
+[3] Qwen2.5-VL 메시지 조립 코드 (요지)
+....................................................................
+SHOTS = [(이미지경로, 정답 JSON), ...]   # 실제 크롭 파일로 교체
+
+messages = [{"role":"user","content":[{"type":"text","text":INSTRUCTION}]}]
+for path, gold in SHOTS:                 # 예시: 이미지->user, 정답->assistant
+    messages += [
+      {"role":"user",     "content":[img(path), {"type":"text","text":"Extract:"}]},
+      {"role":"assistant","content":[{"type":"text",
+                          "text":json.dumps(gold, ensure_ascii=False)}]},
+    ]
+messages.append({"role":"user",          # 실제 질의 크롭
+   "content":[img(query_crop), {"type":"text","text":"Extract:"}]})
+
+# 이후 apply_chat_template -> process_vision_info -> processor ->
+#   model.generate(..., do_sample=False)  # greedy=결정적
+# 출력은 기존 parse_json() 으로 감싸 안전 파싱.
+....................................................................
+
+[사용 팁]
+  - 예시 이미지 3장은 실제 크롭 파일로 교체해야 효과(텍스트 표만으론 부족).
+  - 정확도 부족 시 예시 2->4~5개로 늘리고, 자주 틀리는 특성을 우선 포함.
+  - parse_json()(기존 extract_title_block.py)으로 코드펜스/잡텍스트 방어.
+  - 특정 글리프가 반복 오인되면 -> 그때 비로소 LoRA.
 
 
 --------------------------------------------------------------------
