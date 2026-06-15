@@ -18,11 +18,14 @@ pillow==12.0.0
 # --- Notebooks (display) ---
 ipython==8.38.0
 
-# --- YOLO-OBB annotation pipeline (optional: notebook §7 + train_obb.py) ---
-# Install ultralytics WITHOUT deps so it does not replace the custom torch:
-#   pip install ultralytics --no-deps
-#   pip install opencv-python pyyaml pandas matplotlib psutil py-cpuinfo
-# ultralytics
+# --- YOLO detectors (optional: train_obb.py / train_layout.py / notebook §7) ---
+# Install ultralytics & its extras WITHOUT deps so they don't replace custom torch.
+# Verified working set on kardi_env (ultralytics 8.4.67):
+#   pip install --no-deps ultralytics ultralytics-thop seaborn polars
+#   # already present in kardi_env: opencv-python, pyyaml, pandas, matplotlib,
+#   #                               scipy, psutil, py-cpuinfo, tqdm, requests, numpy, pillow
+# Note: ultralytics 8.4.67 uses `polars` for results.csv (required, else save crashes).
+#   A non-fatal "PyDataFrame is not defined" plot warning may appear (cosmetic; weights OK).
 opencv-python
 pyyaml==6.0.2
 pandas==2.3.3
