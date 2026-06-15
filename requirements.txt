@@ -1,0 +1,29 @@
+# Title_Qwen_VL_25_7B dependencies (conda env: kardi_env, Python 3.10)
+# Versions pinned from the working kardi_env install.
+
+# --- torch: custom CUDA build, DO NOT install from plain PyPI ---
+# Installed build is 2.11.0+cu130. `pip install torch` here will pull a
+# different/incompatible wheel. Keep the existing build; do not reinstall.
+# torch==2.11.0+cu130
+# torchvision==0.26.0
+
+# --- Qwen2.5-VL title-block extraction (core) ---
+transformers==4.57.6
+tokenizers==0.22.2
+qwen-vl-utils==0.0.14
+accelerate==1.13.0
+numpy==2.2.6
+pillow==12.0.0
+
+# --- Notebooks (display) ---
+ipython==8.38.0
+
+# --- YOLO-OBB annotation pipeline (optional: notebook §7 + train_obb.py) ---
+# Install ultralytics WITHOUT deps so it does not replace the custom torch:
+#   pip install ultralytics --no-deps
+#   pip install opencv-python pyyaml pandas matplotlib psutil py-cpuinfo
+# ultralytics
+opencv-python
+pyyaml==6.0.2
+pandas==2.3.3
+matplotlib==3.10.8

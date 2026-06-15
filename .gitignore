@@ -1,0 +1,18 @@
+# Claude Code local settings (machine-specific permission allowlist)
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# YOLO training runs (weights / logs are large)
+yolo_obb_drawing/
+*.pt
+
+# Dataset binaries (keep folder structure via .gitkeep, not the images/labels)
+datasets/drawing_obb/images/train/*
+datasets/drawing_obb/images/val/*
+datasets/drawing_obb/labels/train/*
+datasets/drawing_obb/labels/val/*
+!**/.gitkeep

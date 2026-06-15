@@ -1,0 +1,19 @@
+# YOLO OBB 데이터셋 설정 (도면 주석 검출: measure / gdt / radii)
+# 사용: yolo obb train data=drawing_obb.yaml model=yolo11n-obb.pt ...
+#
+# 라벨 포맷 (OBB): labels/<split>/<이미지이름>.txt 각 줄 =
+#   class_index  x1 y1 x2 y2 x3 y3 x4 y4
+#   - class_index: 0=measure, 1=gdt, 2=radii  (아래 names 순서와 동일)
+#   - x*, y*     : 4개 코너 좌표, 이미지 크기로 0~1 정규화, 시계방향 권장
+#   예) 0 0.31 0.10 0.46 0.10 0.46 0.14 0.31 0.14
+
+# 데이터셋 루트(절대경로). train/val 은 이 경로 기준 상대경로.
+path: /home/jhkim/projects/Title_Qwen_VL_25_7B/datasets/drawing_obb
+train: images/train      # 학습 이미지 폴더 (labels/train 과 파일명 매칭)
+val: images/val          # 검증 이미지 폴더 (labels/val 과 파일명 매칭)
+
+# 클래스: 인덱스 순서가 노트북 CLASS_NAMES 와 반드시 일치해야 함.
+names:
+  0: measure   # 치수값 + 공차 (Ø36 H8, 78, 18±0,1, 20+0,3/0 ...)
+  1: gdt       # 기하공차 프레임 (⊕ Ø0.4Ⓜ A BⓂ C, ▱ 0.08, ⊥ 0.1Ⓜ A ...)
+  2: radii     # 반경 치수 (R3, R42 ...)
