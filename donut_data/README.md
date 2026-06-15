@@ -30,9 +30,11 @@
 ## 파일
 | 파일 | 역할 |
 |---|---|
+| `collect_titleblock.py` | 도면(PDF/이미지)에서 **표제란 크롭 자동 수집** → patches/titleblock/ |
 | `schemas.py` | 클래스별 정답 JSON 스키마 · `task_prompt` · Qwen 자동라벨 프롬프트 |
 | `autolabel.py` | Qwen2.5-VL 라벨러(모델 1회 로드 후 재사용, greedy=결정적) |
 | `build_dataset.py` | 오케스트레이터(수집 → 라벨 → Donut 포맷 + 분할 + manifest) |
+| `to_donut_vml.py` | 산출물 → donut_vml 학습 포맷 변환 + CFG 출력 |
 
 ## 사전 준비 (kardi_env)
 ```bash
@@ -44,7 +46,16 @@
 
 ## 사용법
 
-**1) 콜드스타트 (YOLO 없이, 권장 시작점)** — 손으로 몇 장 잘라 클래스별 폴더에 두고 자동라벨:
+**0) 표제란 크롭 자동 수집 (선택)** — 도면(PDF/이미지)에서 표제란 영역을 자동으로 잘라 모음:
+```bash
+python donut_data/collect_titleblock.py --input <도면폴더 또는 파일들> \
+    --out patches/titleblock --preview
+```
+- 방향 자동 판별: **세로형=하단 띠 / 가로형=우하단**. 안 맞으면 `--portrait-top/--land-left/--land-top`로 비율 조정.
+- `--preview`로 `patches/titleblock/_preview/`에 크롭 박스 표시 이미지를 저장 → 잘 감쌌는지 QA.
+- ⚠️ §14대로 **양식 의존적** 휴리스틱(학술 PDF 등 비도면은 넣지 말 것). 양식이 다양해지면 **표제란 검출기(YOLO-det) 학습**이 견고(크롭이 충분히 모이면 그쪽으로 자동화).
+
+**1) 콜드스타트 (YOLO 없이, 권장 시작점)** — 위 자동 수집(또는 손으로 몇 장) 후 자동라벨:
 ```
 patches/
   measure/*.png   radii/*.png   gdt/*.png   titleblock/*.png
