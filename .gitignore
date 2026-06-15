@@ -4,6 +4,9 @@
 # Claude Code project guidance — keep local only, do not publish
 CLAUDE.md
 
+# Keep local only, do not publish
+LICENSE
+
 # Python
 __pycache__/
 *.py[cod]
