@@ -9,6 +9,19 @@ Two extraction targets:
 1. **Title-block — 5 fields** → `Title`, `Drawing No.`, `LIC. Material`, `Material`, `Rev` (strict JSON)
 2. **Annotations** → `measure` (dimensions + tolerance), `gdt` (geometric tolerance frames), `radii` (strict JSON)
 
+## Recommended approach (per literature + scope)
+
+Based on a method comparison against two on-topic papers (Khan et al.) — see
+[`resource/도면요소추출_방법비교.md`](resource/도면요소추출_방법비교.md):
+
+- **Title-block (5 fixed fields)** → **Qwen2.5-VL zero-shot + ROI preprocessing** (already implemented;
+  no training needed).
+- **Annotations (measure / radii / gdt)** → **YOLO detect → fine-tuned Donut**, which is the
+  literature SOTA for this task (lightweight ~143M, GD&T F1 ≈ 0.965, low hallucination).
+- **Cold start (little/no labeled data)** → bootstrap with a large VLM (Qwen/PaddleOCR) to
+  **auto-label crops**, accumulate Donut training data, then fine-tune. This repo's
+  [`donut_data/`](donut_data/) pipeline does exactly that.
+
 ## Core idea: *detect (where) → crop → VLM (what does it say)*
 
 Both pipelines split responsibility to reduce hallucination:
@@ -17,7 +30,7 @@ Both pipelines split responsibility to reduce hallucination:
 |---|---|
 | **Where** is the cell / annotation? | detector (YOLO) or fixed-ROI code |
 | **Which field** is it? | code (row/column geometry + label anchors) |
-| **What text** does it contain? | the VLM (Qwen2.5-VL) reads the crop |
+| **What text** does it contain? | a VLM reads the crop — Qwen2.5-VL (title-block) / fine-tuned Donut (annotations) |
 
 Letting code (not the network) decide *location* is what keeps `Rev` from being confused with
 `Security`, prevents an empty cell from being filled with a neighbor's value, and keeps small
@@ -45,10 +58,15 @@ extract_title_block.ipynb     # Main notebook: §1–5 title-block, §6 YOLO cel
 extract_title_block_hallusination.ipynb  # Baseline (no preprocessing) + §5b auto-comparison
 train_obb.py                  # YOLO-OBB train / val / predict
 drawing_obb.yaml              # OBB dataset config (0=measure 1=gdt 2=radii)
+donut_data/                   # Donut training-data labeling pipeline (see donut_data/README.md)
+  ├ build_dataset.py          #   detect/crop → Qwen auto-label → Donut format + manifest
+  ├ autolabel.py · schemas.py #   Qwen labeler + per-class JSON schema/prompts
+  ├ to_donut_vml.py           #   convert output → donut_vml training format + CFG
+  └ donut_data_pipeline.ipynb #   runnable notebook version of the above
 input_doc/                    # Test drawing images
 output/                       # JSON results (*_title_block.json / *_baseline.json)
 datasets/drawing_obb/         # YOLO-OBB images/ + labels/ (train|val)
-resource/                     # Design guide + comparison results + sample diagram
+resource/                     # Design guide, method comparison (도면요소추출_방법비교.md/.txt), samples
 ```
 
 ## Setup
@@ -120,6 +138,26 @@ Trained weights land in `yolo_obb_drawing/<name>/weights/best.pt`; point the not
 class  x1 y1 x2 y2 x3 y3 x4 y4      # class: 0=measure 1=gdt 2=radii
 ```
 
+### Donut training-data pipeline (label → fine-tune)
+
+Build a Donut training set (image + JSON) from crops, with a large VLM auto-labeling the
+bootstrap pass. Full docs: [`donut_data/README.md`](donut_data/README.md).
+
+```bash
+# 1) Cold start — auto-label pre-cut crops (patches/<class>/*.png), no YOLO needed
+python donut_data/build_dataset.py --mode patches --input patches \
+    --out datasets/donut_anno --classes measure radii gdt
+
+# 2) (after review) review manifest.csv -> set verified=1, fix labels/*.json
+
+# 3) Convert to donut_vml training format (+ prints a ready-to-paste CFG)
+python donut_data/to_donut_vml.py --src datasets/donut_anno \
+    --dvml /home/jhkim/projects/donut_vml --class gdt --verified-only
+```
+
+Then fine-tune in `donut_vml/donut_training.ipynb` (local mode, paste the printed CFG).
+Generated crops/datasets are gitignored (derived from confidential drawings).
+
 ## Notes & gotchas
 
 - **Class-index order must match** between `drawing_obb.yaml` `names` and the notebook §7
@@ -130,4 +168,6 @@ class  x1 y1 x2 y2 x3 y3 x4 y4      # class: 0=measure 1=gdt 2=radii
 - Augmentation flips (`fliplr`/`flipud`) and color jitter are intentionally disabled: R/digits/
   symbols carry directional meaning and the drawings are monochrome line art.
 
-Detailed Korean documentation lives in [`resource/`](resource/).
+Detailed Korean documentation lives in [`resource/`](resource/) — notably the design guide
+([`DRAWING_EXTRACTION_GUIDE.md`](resource/DRAWING_EXTRACTION_GUIDE.md)) and the method comparison
+& recommendation ([`도면요소추출_방법비교.md`](resource/도면요소추출_방법비교.md)).
