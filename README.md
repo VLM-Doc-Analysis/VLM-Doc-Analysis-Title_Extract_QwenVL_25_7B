@@ -174,6 +174,8 @@ python donut_data/collect_titleblock.py --input <drawings> \
 ```
 Label format (det, normalized): `class cx cy w h` (`0=title_block 1=view 2=note`). Until trained,
 `collect_titleblock.py` falls back to an orientation-based heuristic crop.
+**How to label** both detectors (layout det + annotation OBB): see
+[`resource/LABELING_GUIDE.md`](resource/LABELING_GUIDE.md).
 
 ### Donut training-data pipeline (label → fine-tune)
 
