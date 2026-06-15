@@ -65,8 +65,36 @@ datasets/donut_anno/
 ## 검수 → 학습
 1. `manifest.csv` 에서 `parse_ok=0`(파싱 실패=빈 템플릿) 행부터 확인.
 2. 각 크롭을 보고 `labels/<id>.json` 수정 후, `verified` 를 1 로.
-3. 검수가 끝나면 `donut_vml` 의 Donut 파인튜닝(로컬 데이터셋 모드)에 이 루트를 지정해 학습.
-   - 학습 노트북의 `task_prompt` 는 클래스별로 분리하거나, 라벨의 `"task"` 값을 사용.
+3. 검수가 끝나면 아래 `to_donut_vml.py` 로 donut_vml 학습 포맷으로 변환.
+
+## donut_vml 로 학습 연결 (`to_donut_vml.py`)
+
+donut_vml 의 `DonutDataset`(로컬 모드)은 라벨 dict **전체**를 `json2token` 하므로
+보조키 `"task"` 를 제거해야 하고, `build_model_and_processor` 는 `task_prompt` 토큰만
+등록하므로 **클래스별 학습**이 무수정으로 가장 안전하다. 변환기가 이를 처리한다.
+
+```bash
+# (검수 통과분만) GD&T 학습 데이터 준비
+python donut_data/to_donut_vml.py --src datasets/donut_anno \
+    --dvml /home/jhkim/projects/donut_vml --class gdt --verified-only
+```
+
+수행 내용:
+- `datasets/donut_anno/{train,val}` 에서 해당 클래스·`verified==1` 샘플만 골라
+- 라벨의 `"task"` 키를 제거(순수 스키마) 후
+- `donut_vml/data/processed/drawing_<class>/{train,val}/{images,labels}` 로 복사
+- **노트북 Step 1 에 붙여넣을 CFG**(task_prompt·로컬경로·권장 image_size/max_length) 출력
+
+이후 `donut_vml/donut_training.ipynb`:
+1. **cell 9(로컬 데이터셋 준비)는 건너뛴다** (이미 정리됨).
+2. Step 1 CFG 에 출력된 값을 반영(`dataset_name=None`, `task_prompt=<s_gdt>`, local dirs).
+3. 그대로 실행 → `checkpoints/` 에 학습. 평가는 노트북 Step 5(leaf-match).
+
+> **per-class vs unified**: 본 변환기는 클래스별(권장)로 분리한다. 한 모델로 9범주를
+> 통합 학습(논문 P1 unified)하려면 라벨에 클래스 토큰을 심고 `build_model_and_processor`
+> 가 모든 필드/클래스 토큰을 special token 으로 등록하도록 보강이 필요하다.
+> (필드 키에 공백·점이 있으면 — 예 `"Drawing No."` — 토큰이 지저분해지므로,
+>  필요시 학습용 키를 `Drawing_No` 처럼 바꾸면 더 깔끔하다.)
 
 ## 주의
 - `datasets/donut_anno/`, `_crops/`, `_pages/`, `patches/` 는 **사내 도면 파생물**이라
