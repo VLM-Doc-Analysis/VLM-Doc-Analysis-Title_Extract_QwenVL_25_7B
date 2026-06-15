@@ -1,6 +1,9 @@
 # Claude Code local settings (machine-specific permission allowlist)
 .claude/settings.local.json
 
+# Claude Code project guidance — keep local only, do not publish
+CLAUDE.md
+
 # Python
 __pycache__/
 *.py[cod]
