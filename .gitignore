@@ -7,6 +7,10 @@ CLAUDE.md
 # Keep local only, do not publish
 LICENSE
 
+# Internal/confidential company drawings — never publish
+*.pdf
+input_doc/*.pdf
+
 # Python
 __pycache__/
 *.py[cod]
