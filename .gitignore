@@ -24,6 +24,7 @@ __pycache__/
 
 # YOLO training runs (weights / logs are large)
 yolo_obb_drawing/
+yolo_layout_drawing/
 *.pt
 
 # Dataset binaries (keep folder structure via .gitkeep, not the images/labels)
@@ -31,4 +32,8 @@ datasets/drawing_obb/images/train/*
 datasets/drawing_obb/images/val/*
 datasets/drawing_obb/labels/train/*
 datasets/drawing_obb/labels/val/*
+datasets/drawing_layout/images/train/*
+datasets/drawing_layout/images/val/*
+datasets/drawing_layout/labels/train/*
+datasets/drawing_layout/labels/val/*
 !**/.gitkeep

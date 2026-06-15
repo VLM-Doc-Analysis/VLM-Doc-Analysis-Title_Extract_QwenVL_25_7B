@@ -52,10 +52,24 @@ def render_pages(path, dpi):
 
 
 def titleblock_box(W, H, portrait_top, land_left, land_top):
-    """방향별 표제란 영역 박스(left,top,right,bottom) 추정."""
+    """방향별 표제란 영역 박스(left,top,right,bottom) 추정 — 휴리스틱(검출기 없을 때)."""
     if H >= W:                       # 세로형: 하단 띠(전폭)
         return (0, int(H * portrait_top), W, H)
     return (int(W * land_left), int(H * land_top), W, H)   # 가로형: 우하단
+
+
+def detect_boxes(detector, pil_img, class_name, conf):
+    """학습된 YOLO-det로 title_block 박스들을 (left,top,right,bottom) 리스트로 검출."""
+    import numpy as np
+    res = detector.predict(np.array(pil_img)[:, :, ::-1], conf=conf, verbose=False)[0]
+    names = res.names
+    boxes = []
+    if res.boxes is not None:
+        for b in res.boxes:
+            if names.get(int(b.cls[0]), "") == class_name:
+                x1, y1, x2, y2 = b.xyxy[0].tolist()
+                boxes.append((int(x1), int(y1), int(x2), int(y2)))
+    return boxes
 
 
 def main():
@@ -67,12 +81,23 @@ def main():
     ap.add_argument("--land-left", type=float, default=0.58, help="가로형 우하단 시작 x비율")
     ap.add_argument("--land-top", type=float, default=0.74, help="가로형 우하단 시작 y비율")
     ap.add_argument("--preview", action="store_true", help="크롭 박스 표시 QA 이미지도 저장(_preview)")
+    # ── 검출기 모드(선택): 학습된 YOLO-det 가중치로 표제란 검출 → 휴리스틱 대체(§14 견고) ──
+    ap.add_argument("--weights", default=None,
+                    help="title_block 검출기(train_layout.py best.pt). 주면 휴리스틱 대신 검출 사용")
+    ap.add_argument("--class-name", default="title_block", help="검출기에서 자를 클래스명")
+    ap.add_argument("--conf", type=float, default=0.25, help="검출기 신뢰도 임계값")
     args = ap.parse_args()
 
     os.makedirs(args.out, exist_ok=True)
     preview_dir = os.path.join(args.out, "_preview")
     if args.preview:
         os.makedirs(preview_dir, exist_ok=True)
+
+    detector = None
+    if args.weights:
+        from ultralytics import YOLO
+        print(f"[검출기] {args.weights} 로드 — 휴리스틱 대신 검출 기반 크롭")
+        detector = YOLO(args.weights)
 
     n = 0
     for path in iter_inputs(args.input):
@@ -83,16 +108,25 @@ def main():
             continue
         for stem, im in pages:
             W, H = im.size
-            box = titleblock_box(W, H, args.portrait_top, args.land_left, args.land_top)
-            crop = im.crop(box)
-            out_path = os.path.join(args.out, f"{stem}_tb.png")
-            crop.save(out_path)
-            n += 1
-            orient = "세로" if H >= W else "가로"
-            print(f"  [{orient}] {os.path.basename(path)} {im.size} → {out_path} {crop.size}")
-            if args.preview:
+            if detector is not None:                     # 검출기 모드: 박스 0..N개
+                boxes = detect_boxes(detector, im, args.class_name, args.conf)
+                if not boxes:
+                    print(f"  [miss] {os.path.basename(path)} {stem}: title_block 미검출")
+            else:                                         # 휴리스틱 모드: 박스 1개
+                boxes = [titleblock_box(W, H, args.portrait_top, args.land_left, args.land_top)]
+            for j, box in enumerate(boxes):
+                crop = im.crop(box)
+                suffix = f"_tb{j}" if len(boxes) > 1 else "_tb"
+                out_path = os.path.join(args.out, f"{stem}{suffix}.png")
+                crop.save(out_path)
+                n += 1
+            mode = "검출" if detector is not None else ("세로" if H >= W else "가로")
+            print(f"  [{mode}] {os.path.basename(path)} {im.size} → {len(boxes)}개 크롭")
+            if args.preview and boxes:
                 pv = im.copy()
-                ImageDraw.Draw(pv).rectangle(box, outline=(255, 0, 0), width=max(3, W // 300))
+                d = ImageDraw.Draw(pv)
+                for box in boxes:
+                    d.rectangle(box, outline=(255, 0, 0), width=max(3, W // 300))
                 pv.save(os.path.join(preview_dir, f"{stem}_preview.png"))
 
     print(f"\n[완료] 표제란 크롭 {n}개 → {args.out}")

@@ -76,8 +76,10 @@ greedy (`do_sample=False`), so results are deterministic and reproducible.
 extract_title_block.py        # Standalone title-block extractor (script form)
 extract_title_block.ipynb     # Main notebook: §1–5 title-block, §6 YOLO cell-mapping, §7 OBB pipeline
 extract_title_block_hallusination.ipynb  # Baseline (no preprocessing) + §5b auto-comparison
-train_obb.py                  # YOLO-OBB train / val / predict
+train_obb.py                  # YOLO-OBB train / val / predict (annotations: measure/gdt/radii)
 drawing_obb.yaml              # OBB dataset config (0=measure 1=gdt 2=radii)
+train_layout.py               # YOLOv11-det train/val/predict (layout: title_block/view/note)
+drawing_layout.yaml           # layout-det dataset config (0=title_block 1=view 2=note)
 donut_data/                   # Donut training-data labeling pipeline (see donut_data/README.md)
   ├ build_dataset.py          #   detect/crop → Qwen auto-label → Donut format + manifest
   ├ autolabel.py · schemas.py #   Qwen labeler + per-class JSON schema/prompts
@@ -157,6 +159,21 @@ Trained weights land in `yolo_obb_drawing/<name>/weights/best.pt`; point the not
 ```
 class  x1 y1 x2 y2 x3 y3 x4 y4      # class: 0=measure 1=gdt 2=radii
 ```
+
+### Layout detector (YOLOv11-det: title_block / view / note)
+
+Robust, format-independent alternative to fixed-ROI cropping (see comparison doc §14). Detects
+the title-block / view / note regions so crops adapt across drawing formats.
+
+```bash
+python train_layout.py                               # train (data: datasets/drawing_layout/)
+python train_layout.py --mode predict --source <drawing.png>
+# use the trained detector to crop title blocks:
+python donut_data/collect_titleblock.py --input <drawings> \
+    --weights yolo_layout_drawing/train/weights/best.pt --out patches/titleblock --preview
+```
+Label format (det, normalized): `class cx cy w h` (`0=title_block 1=view 2=note`). Until trained,
+`collect_titleblock.py` falls back to an orientation-based heuristic crop.
 
 ### Donut training-data pipeline (label → fine-tune)
 

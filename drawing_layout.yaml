@@ -1,0 +1,19 @@
+# YOLO 레이아웃 검출(det) 데이터셋 설정 — 도면 영역 분리 (title_block / view / note)
+# 목적: §14의 양식-의존 ROI 휴리스틱을 대체할 "표제란/뷰/노트" 검출기(YOLOv11-det). 논문 P2의 1단계.
+# 사용: yolo detect train data=drawing_layout.yaml model=yolo11n.pt imgsz=1280 ...
+#
+# 라벨 포맷(det, 수평 박스 AABB): labels/<split>/<이미지이름>.txt 각 줄 =
+#   class_index  cx cy w h        (중심좌표·폭·높이, 이미지 크기로 0~1 정규화)
+#   예) 1 0.78 0.90 0.40 0.18      # title_block (우하단 큰 박스)
+#
+# ※ 표제란만 필요하면 title_block(0)만 라벨해도 됨(이 yaml의 names는 그대로 두되 0만 사용).
+#    뷰/노트까지 라벨하면 주석 OBB 파이프라인(각 뷰 크롭)·노트 추출에 함께 활용.
+
+path: /home/jhkim/projects/Title_Qwen_VL_25_7B/datasets/drawing_layout
+train: images/train      # 학습 이미지(전체 도면 페이지). labels/train 과 파일명 매칭
+val: images/val          # 검증 이미지
+
+names:
+  0: title_block   # 표제란 (보통 우하단 정형 표)
+  1: view          # 도면 뷰(정면도/단면도/등각/Detail 등) — 주석 OBB 검출 대상 영역
+  2: note          # 노트/주기(자유문 텍스트 블록)

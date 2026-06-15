@@ -53,7 +53,15 @@ python donut_data/collect_titleblock.py --input <도면폴더 또는 파일들> 
 ```
 - 방향 자동 판별: **세로형=하단 띠 / 가로형=우하단**. 안 맞으면 `--portrait-top/--land-left/--land-top`로 비율 조정.
 - `--preview`로 `patches/titleblock/_preview/`에 크롭 박스 표시 이미지를 저장 → 잘 감쌌는지 QA.
-- ⚠️ §14대로 **양식 의존적** 휴리스틱(학술 PDF 등 비도면은 넣지 말 것). 양식이 다양해지면 **표제란 검출기(YOLO-det) 학습**이 견고(크롭이 충분히 모이면 그쪽으로 자동화).
+- ⚠️ §14대로 **양식 의존적** 휴리스틱(학술 PDF 등 비도면은 넣지 말 것).
+- **양식이 다양하면 → 검출기 모드**: 표제란 검출기(`train_layout.py`)를 학습한 뒤
+  `--weights <best.pt>`를 주면 휴리스틱 대신 **검출 기반 크롭**(양식 무관, 견고):
+  ```bash
+  python donut_data/collect_titleblock.py --input <도면> \
+      --weights yolo_layout_drawing/train/weights/best.pt --out patches/titleblock --preview
+  ```
+  검출기 학습 셋업은 프로젝트 루트의 **`train_layout.py` + `drawing_layout.yaml`** 참조
+  (클래스 0=title_block 1=view 2=note). 크롭이 충분히 모이면 이 경로로 자동화 권장.
 
 **1) 콜드스타트 (YOLO 없이, 권장 시작점)** — 위 자동 수집(또는 손으로 몇 장) 후 자동라벨:
 ```
